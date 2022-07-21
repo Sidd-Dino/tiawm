@@ -1,2 +1,2 @@
-# sdwm
-Sidd-Dino's Window Manager
+# tiawm (*This Is A Window Manager*)
+
