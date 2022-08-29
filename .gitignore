@@ -1,2 +1,3 @@
 tiawm
 *.o
+config.h

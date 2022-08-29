@@ -1,0 +1,13 @@
+tiawm                                                    This Is A Window Manager
+_________________________________________________________________________________
+
+TIAWM tries it's best to be window manager.
+
+
+Commands
+_________________________________________________________________________________
+
+Default behaviour can be customised in config.h file:
+    Win + Button1             Raise Window to top of stack
+    Win + Button1 + [drag]    Move Window
+    Alt + Button1 + [drag]    Resize Window
