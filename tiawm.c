@@ -7,7 +7,6 @@
 
 #include <xcb/xcb.h>
 #include <xcb/xcb_keysyms.h>
-#include <xcb/xproto.h>
 
 #include "tiawm.h"
 #include "config.h"
@@ -15,7 +14,7 @@
 
 static xcb_connection_t *d;
 static xcb_screen_t     *scr;
-static mouse            btn_press;
+static mouse            m_btn;
 static unsigned int     numlockmask = 0;
 
 uint32_t values[4];
@@ -57,16 +56,18 @@ void handle_button_press(xcb_generic_event_t *ev) {
         if (!e->child || e->child == scr->root)
                 return;
 
-        btn_press.window  = e->child;
-        btn_press.button  = e->detail;
-        btn_press.root_x  = e->root_x;
-        btn_press.root_y  = e->root_y;
+        m_btn = (mouse){
+                .win  = e->child,
+                .btn  = e->detail,
+                .rtx  = e->root_x,
+                .rty  = e->root_y
+        };
 	values[0] = XCB_STACK_MODE_ABOVE;
-	xcb_configure_window(d, btn_press.window, XCB_CONFIG_WINDOW_STACK_MODE, values);
+	xcb_configure_window(d, m_btn.win, XCB_CONFIG_WINDOW_STACK_MODE, values);
 }
 
 void handle_button_release(xcb_generic_event_t *ev) {
-        btn_press.window = 0;
+        m_btn = (mouse){0};
 }
 
 void handle_map_request(xcb_generic_event_t *ev) {
@@ -89,42 +90,42 @@ void handle_enter_notify(xcb_generic_event_t *ev) {
         xcb_enter_notify_event_t *e = (xcb_enter_notify_event_t *) ev;
         if (!e->event || e->event == scr->root)
                 return;
-        
+
         xcb_set_input_focus(d, XCB_INPUT_FOCUS_POINTER_ROOT, e->event,
 	        XCB_CURRENT_TIME);
 }
 
 void handle_motion_notify(xcb_generic_event_t *ev) {
-        if(!btn_press.window) return;
+        if(!m_btn.win) return;
 
         xcb_get_geometry_reply_t  *geom;
         xcb_query_pointer_reply_t *poin;
         uint16_t                  mask;
         int                       dx, dy;
 
-        geom = xcb_get_geometry_reply(d, xcb_get_geometry(d, btn_press.window), 0);
+        geom = xcb_get_geometry_reply(d, xcb_get_geometry(d, m_btn.win), 0);
         poin = xcb_query_pointer_reply(d, xcb_query_pointer(d, scr->root), 0);
         mask = mod_clean(poin->mask);
 
-        dx = poin->root_x - btn_press.root_x;
-        dy = poin->root_y - btn_press.root_y;
+        dx = poin->root_x - m_btn.rtx;
+        dy = poin->root_y - m_btn.rty;
 
-        if ( mask == MOVE_MOD && btn_press.button == MOVE_BUTTON ) {
+        if ( mask == MOVE_MOD && m_btn.btn == MOVE_BUTTON ) {
                 values[0] = geom->x + dx;
                 values[1] = geom->y + dy;
-                xcb_configure_window(d, btn_press.window, XCB_CONFIG_WINDOW_X
+                xcb_configure_window(d, m_btn.win, XCB_CONFIG_WINDOW_X
                         | XCB_CONFIG_WINDOW_Y, values);
         }
 
-        if ( mask == RESIZE_MOD && btn_press.button == RESIZE_BUTTON ) {
+        if ( mask == RESIZE_MOD && m_btn.btn == RESIZE_BUTTON ) {
                 values[0] = MAX((int)geom->width  + dx, MIN_WINDOW_WIDTH);
                 values[1] = MAX((int)geom->height + dy, MIN_WINDOW_HEIGHT);
-                xcb_configure_window(d, btn_press.window, XCB_CONFIG_WINDOW_WIDTH
+                xcb_configure_window(d, m_btn.win, XCB_CONFIG_WINDOW_WIDTH
                         | XCB_CONFIG_WINDOW_HEIGHT, values);
         }
 
-        btn_press.root_x = poin->root_x;
-        btn_press.root_y = poin->root_y;
+        m_btn.rtx = poin->root_x;
+        m_btn.rty = poin->root_y;
 }
 
 
@@ -137,15 +138,15 @@ int grab_input(void) {
         };
 
         for (int m=0; m<4; m++) {
-        xcb_grab_button(d, 0, scr->root, XCB_EVENT_MASK_BUTTON_MOTION |
-                XCB_EVENT_MASK_BUTTON_PRESS | XCB_EVENT_MASK_BUTTON_RELEASE,
-                XCB_GRAB_MODE_ASYNC, XCB_GRAB_MODE_ASYNC,
-                scr->root, XCB_NONE, MOVE_BUTTON, MOVE_MOD | modifiers[m]);
-        xcb_grab_button(d, 0, scr->root, XCB_EVENT_MASK_BUTTON_MOTION |
-                XCB_EVENT_MASK_BUTTON_PRESS | XCB_EVENT_MASK_BUTTON_RELEASE,
-                XCB_GRAB_MODE_ASYNC, XCB_GRAB_MODE_ASYNC,
-                scr->root, XCB_NONE, RESIZE_BUTTON, RESIZE_MOD | modifiers[m]);
-    }
+                xcb_grab_button(d, 0, scr->root, XCB_EVENT_MASK_BUTTON_MOTION |
+                        XCB_EVENT_MASK_BUTTON_PRESS | XCB_EVENT_MASK_BUTTON_RELEASE,
+                        XCB_GRAB_MODE_ASYNC, XCB_GRAB_MODE_ASYNC,
+                        scr->root, XCB_NONE, MOVE_BUTTON, MOVE_MOD | modifiers[m]);
+                xcb_grab_button(d, 0, scr->root, XCB_EVENT_MASK_BUTTON_MOTION |
+                        XCB_EVENT_MASK_BUTTON_PRESS | XCB_EVENT_MASK_BUTTON_RELEASE,
+                        XCB_GRAB_MODE_ASYNC, XCB_GRAB_MODE_ASYNC,
+                        scr->root, XCB_NONE, RESIZE_BUTTON, RESIZE_MOD | modifiers[m]);
+        }
 
     xcb_flush(d);
     return 1;
@@ -157,8 +158,8 @@ int setup(void) {
                   | XCB_EVENT_MASK_STRUCTURE_NOTIFY
                   | XCB_EVENT_MASK_SUBSTRUCTURE_NOTIFY
                   | XCB_EVENT_MASK_PROPERTY_CHANGE;
-    
-    xcb_change_window_attributes_checked(d, scr->root,
+
+        xcb_change_window_attributes_checked(d, scr->root,
                                         XCB_CW_EVENT_MASK, values);
 
 
@@ -173,19 +174,20 @@ int setup(void) {
         if (!modmap) return 0;
 
         numlock = xcb_get_keycode(0xff7f); // XK_Num_Lock 0xff7f
-        
-        for (int i=4; i<8; i++) {
+
+        for (int i=4; numlock && i<8; i++) {
                 for (int j=0; j<reply->keycodes_per_modifier; j++) {
-                xcb_keycode_t keycode = modmap[i*reply->keycodes_per_modifier+j];
-                if (keycode == XCB_NO_SYMBOL)
-                        continue;
-                
-                if (numlock != NULL)
+                        xcb_keycode_t keycode = modmap[ j +
+                                (i * reply->keycodes_per_modifier) ];
+
+                        if (keycode == XCB_NO_SYMBOL)
+                                continue;
+
                         for (int n=0; numlock[n] != XCB_NO_SYMBOL; n++)
-                        if (numlock[n] == keycode) {
-                                numlockmask = 1 << i;
-                                break;
-                        }
+                                if (numlock[n] == keycode) {
+                                        numlockmask = 1 << i;
+                                        break;
+                                }
                 }
         }
 
@@ -223,3 +225,5 @@ int main(void) {
                 free(ev);
         }
 }
+
+// vim:cc=81 ts=8 sts=8 sw=8:

@@ -1,16 +1,14 @@
-#include <xcb/xproto.h>
-
-#define mod_clean(mask) (mask & ~(numlockmask|XCB_MOD_MASK_LOCK) &              \
-        (XCB_MOD_MASK_SHIFT|XCB_MOD_MASK_CONTROL|                               \
-        XCB_MOD_MASK_1|XCB_MOD_MASK_2|XCB_MOD_MASK_3|                           \
+#define mod_clean(mask) (mask & ~(numlockmask|XCB_MOD_MASK_LOCK) &    \
+        (XCB_MOD_MASK_SHIFT|XCB_MOD_MASK_CONTROL|                     \
+        XCB_MOD_MASK_1|XCB_MOD_MASK_2|XCB_MOD_MASK_3|                 \
         XCB_MOD_MASK_4|XCB_MOD_MASK_5))
 
 #define MAX(a,b) ((a) > (b) ? (a) : (b))
 
-typedef struct mouse {
-        xcb_window_t window;
-        unsigned int button;
-        int16_t      root_x, root_y;
+typedef struct {
+        xcb_window_t win;
+        unsigned int btn;
+        int16_t      rtx, rty;
 } mouse;
 
 xcb_keycode_t* xcb_get_keycode(xcb_keysym_t keysym);
