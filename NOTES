@@ -1,0 +1,41 @@
+/
+/root
+/root/geometry
+/root/geometry/width
+/root/geometry/height
+/win
+/win/0x*
+/win/0x*/geometry/x
+/win/0x*/geometry/y
+/win/0x*/geometry/width
+/win/0x*/geometry/height
+/win/0x*/mapped
+/ws
+/ws/*
+/ws/*/0x*
+/ws/*/0x*/geometry/x
+/ws/*/0x*/geometry/y
+/ws/*/0x*/geometry/width
+/ws/*/0x*/geometry/height
+/ws/*/0x*/mapped
+/focused
+/event
+
+windows   : win  : WINDOWS
+workspace : ws   : WORKSPACE
+display   : disp : DISPLAY
+
+typedef struct { char *t; node *l; } ws;
+
+struct node {
+    node   * next;
+    node   * prev;
+
+    union {
+        xcb_window_t win;
+        struct {
+            char   name[PATH_MAX];
+            node * poin;
+        } ws;
+    } data;
+};

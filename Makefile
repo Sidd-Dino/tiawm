@@ -1,16 +1,18 @@
-CFLAGS += -std=c99 -Wall -Wextra -pedantic -Wold-style-declaration
+CC     ?= gcc
+
+CFLAGS += -Os -std=c99 -pedantic -Wall -Wextra -Wold-style-declaration
 CFLAGS += -Wmissing-prototypes -Wno-unused-parameter
+
 PREFIX ?= /usr
 BINDIR ?= $(PREFIX)/bin
-CC     ?= gcc
+
+SRC    += list.h  wm.c  xcb.c  xcb.h
+LIB    := -lxcb-keysyms -lxcb
 
 all: tiawm
 
-config.h:
-	cp config.def.h config.h
-
-tiawm: tiawm.c tiawm.h config.h Makefile
-	$(CC) -O3 $(CFLAGS) -o $@ $< -lxcb -lxcb-keysyms $(LDFLAGS)
+tiawm:
+	$(CC) -o $@ -Os $(CFLAGS)  $(SRC) $(LIB) $(LDFLAGS)
 
 install: all
 	install -Dm755 tiawm $(DESTDIR)$(BINDIR)/tiawm
